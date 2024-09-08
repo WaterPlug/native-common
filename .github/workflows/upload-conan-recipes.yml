@@ -42,7 +42,7 @@ jobs:
           conan package .
 
       - name: Upload log
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3  # Updated to the latest version
         with:
           name: Build Log
           path: conanbuildinfo.txt  # Adjust this if you have specific log files to upload
