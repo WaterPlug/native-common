@@ -1,0 +1,49 @@
+name: Release Conan Files
+
+on:
+  workflow_dispatch: # Позволяет вручную запускать workflow
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: native-libs-common
+
+      - name: Build and package Conan files
+        run: |
+          set -e -x
+          
+          mkdir conanfiles_build
+          pushd conanfiles_build
+          
+          ARCHIVE_NAME=conanfiles.tar.gz
+          
+          cp -r ../conan/profiles .
+          cp -r ../conan/settings_user.yml .
+          cp -r ../cmake/conan_provider.cmake .
+          tar czf ${ARCHIVE_NAME} *
+          
+          VERSION=$(grep "[0-9]*\.[0-9]*." ../conandata.yml | tail -1 | sed "s/\s*\"//" | sed "s/\"\:\s*//")
+          TAG="v${VERSION}"
+          
+          git remote set-url origin ${{ secrets.GITHUB_TOKEN }}
+          git remote remove gh || true
+          git remote add gh https://${{ secrets.GITHUB_TOKEN }}@github.com/WaterPlug/native-common
+          git tag -d ${TAG} || true
+          git tag ${TAG}
+          git push origin ${TAG}
+          git push gh ${TAG}
+          
+          gh config set -h github.com oauth_token "${{ secrets.GITHUB_TOKEN }}" || exit 1
+          gh release create ${TAG} ${ARCHIVE_NAME} -t "Conan files ${TAG}" -n "Make various Conan-related files available for use in other WaterPlug projects."
+          
+          popd
+          rm -rf conanfiles_build
+        working-directory: native-common
+
+      - name: Clean up
+        run: |
+          rm -rf native-common/conanfiles_build

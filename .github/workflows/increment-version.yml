@@ -1,0 +1,42 @@
+name: Increment Version
+
+on:
+  push:
+    branches:
+      - master
+      - stable-*
+
+jobs:
+  increment_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          path: native-common
+
+      - name: Set up Git
+        run: |
+          git config user.name "WaterPug"
+          git config user.email " wateerseven.business@yandex.com"
+
+      - name: Increment version
+        run: |
+          set -x
+          
+          if [ "${{ secrets.CUSTOM_VERSION }}" = "none" ]; then
+              CUSTOM_VERSION=""
+          else
+              CUSTOM_VERSION="${{ secrets.CUSTOM_VERSION }}"
+          fi
+
+          cd native-common/scripts
+          ./increment_version.sh $CUSTOM_VERSION || exit 1
+          cd ../..
+
+          git remote set-url origin ${{ secrets.REPO_URL }}
+          git pull
+          git reset
+          git add conandata.yml
+          git commit -m "skipci: Automatic version increment by GitHub Actions"
+          git push

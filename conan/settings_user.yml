@@ -1,0 +1,7 @@
+os:
+  Windows:
+    wp_profile_version: &wp_profile_version [ null, "2" ]
+  Linux:
+    wp_profile_version: *wp_profile_version
+  Macos:
+    wp_profile_version: *wp_profile_version

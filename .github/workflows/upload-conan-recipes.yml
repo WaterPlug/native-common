@@ -1,0 +1,48 @@
+name: Build and Upload Native Libraries
+
+on:
+  push:
+    branches:
+      - main  # Change this to your default branch if necessary
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'  # Specify the Python version you need
+
+      - name: Install Conan
+        run: |
+          python -m pip install conan --upgrade
+
+      - name: Configure Conan
+        run: |
+          conan remote add art ${{ secrets.CONAN_REPO_URL }} || true
+          conan user art -p ${{ secrets.ARTIFACTORY_PASSWORD }} -u ${{ secrets.ARTIFACTORY_USER }}
+
+      - name: Install Boost
+        run: |
+          conan install . --build=missing
+
+      - name: Build the project
+        run: |
+          conan build .
+
+      - name: Package the project
+        run: |
+          conan package .
+
+      - name: Upload log
+        uses: actions/upload-artifact@v2
+        with:
+          name: Build Log
+          path: conanbuildinfo.txt  # Adjust this if you have specific log files to upload
