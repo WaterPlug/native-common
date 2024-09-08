@@ -31,7 +31,7 @@ jobs:
       - name: Build and Test
         run: |
           call vcvars32
-          if exist build\ rmdir /s /q build || exit /b 1
+          if (Test-Path build) { Remove-Item -Recurse -Force build }
           mkdir build || exit /b 1
           cd build || exit /b 1
           cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS_DEBUG=/MT -DCMAKE_CXX_FLAGS_DEBUG=/MT -G Ninja ..
@@ -97,6 +97,7 @@ jobs:
       - name: Build and Test
         run: |
           set -x -e
+          source ./venv/bin/activate
           PROJECT_PATH=$(pwd)
           ARCH=$(uname -m)
           mkdir -p build
