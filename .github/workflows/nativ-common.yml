@@ -16,7 +16,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install Conan
+      - name: Install Conan and boost and gtest
         run: |
           pip install conan==2.7.0
 
