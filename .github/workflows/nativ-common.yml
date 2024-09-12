@@ -1,37 +1,59 @@
-name: conan-recipes
+name: Upload Conan Recipes
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
-  build:
+  upload:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install Conan and boost and gtest
-        run: |
-          pip install conan==2.7.0
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'  # Specify the Python version you need
 
-      - name: Configure CMake
+      - name: Install Conan
         run: |
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=conan2
+          python -m pip install --upgrade pip
+          python -m pip install conan
 
-      - name: Build
-        run: |
-          cd build
-          cmake --build .
+      - name: Clean up local cache
+        run: conan remove -c "*"
 
-      - name: Run tests
+      - name: Add Conan remote
+        run: conan remote add --index 0 art ${{ secrets.CONAN_REPO_URL }} || true
+
+      - name: Install requirements
         run: |
-          cd build
-          ctest
+          cd scripts
+          python -m pip install -r requirements.txt
+
+      - name: Export packages
+        run: |
+          cd scripts
+          ./export_conan.py
+
+      - name: Login to Conan remote
+        run: |
+          conan remote login art "${{ secrets.ARTIFACTORY_USER }}" --password "${{ secrets.ARTIFACTORY_PASSWORD }}" > upload.txt 2>&1
+
+      - name: Upload packages
+        run: |
+          conan upload -r art -c "*" >> upload.txt 2>&1
+          echo "Conan upload finished with status $?"
+
+      - name: Clean up
+        run: conan remove -c "*"
+
+      - name: Upload log
+        uses: actions/upload-artifact@v2
+        with:
+          name: Upload Log
+          path: scripts/upload.txt
