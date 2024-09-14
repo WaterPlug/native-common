@@ -9,38 +9,31 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
       - name: Install conan
-        run: |
-          python3 -m pip install conan --upgrade
-
+        run: python3 -m pip install conan --upgrade
       - name: Clean up local cache
         run: conan remove -c "*"
-
       - name: Add conan remote
         run: conan remote add --index 0 conancenter https://conan.io || true
-
       - name: Export packages
         run: |
           cd scripts
           python3 -m pip install -r requirements.txt
           ./export_conan.py
-
+          echo "Export completed"
       - name: Login to conan remote
-        run: conan remote login conancenter $CONAN_USERNAME --password $CONAN_PASSWORD > upload.txt 2>&1
-
+        run: |
+          conan remote login conancenter ${{ secrets.CONAN_USERNAME }} ${{ secrets.CONAN_PASSWORD }} > upload.txt 2>&1
       - name: Upload packages
-        run: conan upload -r conancenter -c "*" >> upload.txt 2>&1 echo conan upload finished with status $?
-
+        run: |
+          conan upload -r conancenter -c "*" --force >> upload.txt 2>&1
+          echo "Conan upload finished with status $?"
       - name: Clean up
         run: conan remove -c "*"
-
-      - name: Upload log
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v3
         with:
           name: Upload Log
           path: scripts/upload.txt
