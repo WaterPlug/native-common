@@ -21,7 +21,7 @@ jobs:
       - name: Export packages
         run: |
           cd scripts
-          python3 -m pip install -r requirements.txt
+          python3 -m pip install -r conanfile.py
           ./export_conan.py
           echo "Export completed"
       - name: Login to conan remote
