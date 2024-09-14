@@ -1,39 +1,69 @@
-name: Upload conan recipes
+name: Increment Version (Conan Center)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, stable-* ]
 
 jobs:
-  upload:
+  increment_version:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Configure SSH agent (if necessary)
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0
-      - name: Install conan
-        run: python3 -m pip install conan --upgrade
-      - name: Clean up local cache
-        run: conan remove -c "*"
-      - name: Add conan remote
-        run: conan remote add --index 0 conancenter https://conan.io || true
-      - name: Export packages
-        run: |
-          cd scripts
-          python3 -m pip install -r conanfile.py
-          ./export_conan.py
-          echo "Export completed"
-      - name: Login to conan remote
-        run: |
-          conan remote login conancenter ${{ secrets.CONAN_USERNAME }} ${{ secrets.CONAN_PASSWORD }} > upload.txt 2>&1
-      - name: Upload packages
-        run: |
-          conan upload -r conancenter -c "*" --force >> upload.txt 2>&1
-          echo "Conan upload finished with status $?"
-      - name: Clean up
-        run: conan remove -c "*"
-      - uses: actions/upload-artifact@v3
+          persist-credentials: true
+
+      - name: Set up Docker
+        uses: docker/setup-action@v3
         with:
-          name: Upload Log
-          path: scripts/upload.txt
+          image: WaterPlug/core-libs:1.0
+
+      - name: Run containerized build steps
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -v ${{ secrets.SSH_KEY }}:/root/.ssh \
+            WaterPlug/core-libs:1.0 \
+            bash -c "
+              set -x
+
+              git config user.name 'WaterPlug'
+              git config user.email 'WaterPlug@gmail.com'
+
+              if [[ -z $CUSTOM_VERSION ]]; then
+                CUSTOM_VERSION=''
+              fi
+
+              case ${{ github.ref_name }} in
+                master|stable-*)
+                  cd scripts
+                  ./increment_version.sh $CUSTOM_VERSION || exit 1
+                  cd ..
+                  git remote set-url origin https://github.com/$GITHUB_REPOSITORY_OWNER/$GITHUB_REPOSITORY
+                  git pull
+                  git reset --hard HEAD~1
+                  git add conandata.yml
+                  git commit -m 'skipci: Automatic version increment by GitHub Actions'
+                  git push
+
+                  # Trigger downstream pipeline (if applicable)
+                  if [[ -n $BAMBOO_TRIGGER_URL ]]; then
+                    curl -H "Authorization: Bearer $GITHUB_TOKEN" \
+                       -X POST -d '{"executeAllStages": true}' \
+                       $BAMBOO_TRIGGER_URL
+                  fi
+                  ;;
+                *)
+                  echo 'Skipping version increment on non-master/stable branch'
+                  ;;
+              esac
+            "
+        env:
+          CUSTOM_VERSION: ${{ secrets.CUSTOM_VERSION }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          BAMBOO_TRIGGER_URL: ${{ secrets.BAMBOO_TRIGGER_URL }}
+
+      - name: Download Conan artifacts (if needed)
+        uses: conan-io/

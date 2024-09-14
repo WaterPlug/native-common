@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-native-libs:
+    needs: []
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/workflows/native-common.yml
+  upload-conan-recipes:
+    needs: [ build-native-libs ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/workflows/upload-conan-recipes.yml
+  increment-version:
+    needs: [ upload-conan-recipes ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/workflows/increment-version.yml
+  release-conanfiles:
+    needs: [ increment-version ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/workflows/release-conanfiles.yml

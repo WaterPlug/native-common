@@ -1,0 +1,18 @@
+name: Clean workspace and set permissions
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Clean workspace
+        run: |
+          rm -rf ./*
+          if [ -O "${GITHUB_WORKSPACE}" ]; then
+            chmod 0777 "${GITHUB_WORKSPACE}"
+          fi
